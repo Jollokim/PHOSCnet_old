@@ -4,6 +4,12 @@ import torch.nn as nn
 
 from modules.pyramidpooling import TemporalPyramidPooling
 
+from timm.models.registry import register_model
+
+__all__ = [
+    'PHOSCnet_temporalpooling'
+]
+
 
 class PHOSCnet(nn.Module):
     def __init__(self):
@@ -71,6 +77,11 @@ class PHOSCnet(nn.Module):
         x = self.temporal_pool(x)
 
         return {'phos': self.phos(x), 'phoc': self.phoc(x)}
+
+
+@register_model
+def PHOSCnet_temporalpooling(**kwargs):
+    return PHOSCnet()
 
 
 if __name__ == '__main__':
