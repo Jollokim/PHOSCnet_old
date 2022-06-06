@@ -1,2 +1,6 @@
+# environment
 venv
 .idea
+
+# training, validation, testing data
+image_data
