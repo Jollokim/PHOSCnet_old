@@ -11,6 +11,9 @@ from utils import get_map_dict
 def train_one_epoch(model: torch.nn.Module, criterion: PHOSCLoss,
                     dataloader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int):
+
+    model.train(True)
+
     n_batches = len(dataloader)
     batch = 1
     loss_over_epoch = 0
