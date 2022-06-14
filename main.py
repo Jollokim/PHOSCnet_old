@@ -27,12 +27,16 @@ def get_args_parser():
     parser.add_argument('--pretrained_weights', type=str, help='the path to pretrained weights file')
 
     # Dataset folder paths
-    parser.add_argument('--train_csv', type=str, help='The train root folder')
+    parser.add_argument('--train_csv', type=str, help='The train csv')
     parser.add_argument('--train_folder', type=str, help='The train root folder')
-    parser.add_argument('--valid_csv', type=str, help='The valid root folder')
+    parser.add_argument('--valid_csv', type=str, help='The valid csv')
     parser.add_argument('--valid_folder', type=str, help='The valid root folder')
-    parser.add_argument('--test_csv', type=str, help='The test root folder')
-    parser.add_argument('--test_folder', type=str, help='The test root folder')
+
+    parser.add_argument('--test_csv_seen', type=str, help='The seen test csv')
+    parser.add_argument('--test_folder_seen', type=str, help='The seen test root folder')
+
+    parser.add_argument('--test_csv_unseen', type=str, help='The unseen test csv')
+    parser.add_argument('--test_folder_unseen', type=str, help='The unseen test root folder')
 
     # Dataloader settings
     parser.add_argument('--batch_size', type=int, default=32, help='number of samples per iteration in the epoch')
@@ -78,11 +82,22 @@ def main(args):
             )
 
     elif args.mode == 'test':
-        dataset_test = phosc_dataset(args.test_csv,
-                                     args.test_folder, transforms.ToTensor())
+        dataset_test_seen = phosc_dataset(args.test_csv_seen,
+                                     args.test_folder_seen, transforms.ToTensor())
 
-        data_loader_test = torch.utils.data.DataLoader(
-            dataset_test,
+        data_loader_test_seen = torch.utils.data.DataLoader(
+            dataset_test_seen,
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            drop_last=False,
+            shuffle=True
+        )
+
+        dataset_test_unseen = phosc_dataset(args.test_csv_unseen,
+                                     args.test_folder_unseen, transforms.ToTensor())
+
+        data_loader_test_unseen = torch.utils.data.DataLoader(
+            dataset_test_unseen,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             drop_last=False,
@@ -123,13 +138,14 @@ def main(args):
 
                 if acc > mx_acc:
                     mx_acc = acc
+
                     # removes previous best weights
                     if os.path.exists(f'{args.model}/epoch{best_epoch}.pt'):
-                        os.remove(f'{args.name}/epoch{best_epoch}.pt')
+                        os.remove(f'{args.model}/epoch{best_epoch}.pt')
 
                     best_epoch = epoch
 
-                    torch.save(model.state_dict(), f'{args.name}/epoch{best_epoch}.pt')
+                    torch.save(model.state_dict(), f'{args.model}/epoch{best_epoch}.pt')
 
             with open(args.model + '/' + 'log.csv', 'a') as f:
                 f.write(f'{epoch},{mean_loss},{acc}\n')
@@ -137,11 +153,23 @@ def main(args):
             scheduler.step(acc)
 
     def testing():
-        pass
+        model.load_state_dict(torch.load(args.pretrained_weights))
+
+        acc_seen, _, __ = accuracy_test(model, data_loader_test_seen, device)
+        acc_unseen, _, __ = accuracy_test(model, data_loader_test_unseen, device)
+
+        with open(args.model + '/' + 'testresults.txt', 'a') as f:
+            f.write(f'{args.model} test results\n')
+            f.write(f'Seen acc: {acc_seen}\n')
+            f.write(f'Unseen acc: {acc_unseen}\n')
+
+        print(f'accuracies of model: {args.model}')
+        print('Seen accuracies:', acc_seen)
+        print('Unseen accuracies:', acc_unseen)
 
     if args.mode == 'train':
         training()
-    elif args.mode == 'testing':
+    elif args.mode == 'test':
         testing()
 
 
