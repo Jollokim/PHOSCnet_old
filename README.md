@@ -15,4 +15,5 @@ both have the job of making sure feature maps from the convolutional layers fits
 Training and testing with the IAM dataset.
 
 seen accuracy: 92%
+
 unseen accuracy: 82%
