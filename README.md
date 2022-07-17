@@ -9,4 +9,5 @@ both have the job of making sure feature maps from the convolutional layers fits
 
 
 [Spatial Pyramid Pooling](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=7005506&casa_token=UuRaEPYYiyAAAAAA:4pcm6cp4eaGjwsTuKnB-outFHSb5n2n0yYkTTuqTwQpPxOtdnbX8cFbh8P2VLBaCiWOgg2hHSZHL)
+
 [Temporal Pyramid Pooling](https://patrec.cs.tu-dortmund.de/pubs/papers/Sudholt2017-EWS.pdf)
