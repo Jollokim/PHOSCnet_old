@@ -9,7 +9,7 @@ from torchsummary import summary
 from torchvision.transforms import transforms
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from modules.dataset import phosc_dataset
+from modules.datasets import phosc_dataset
 from modules.engine import train_one_epoch, accuracy_test
 from modules.loss import PHOSCLoss
 
@@ -114,16 +114,16 @@ def main(args):
     summary(model, (3, 50, 250))
 
     def training():
-        if not os.path.exists(f'{args.model}/'):
-            os.mkdir(args.model)
+        if not os.path.exists(f'{args.name}/'):
+            os.mkdir(args.name)
 
-        with open(args.model + '/' + 'log.csv', 'a') as f:
-            f.write('epoch,loss,acc\n')
+        with open(args.name + '/' + 'log.csv', 'a') as f:
+            f.write('epoch,loss,acc,lr\n')
 
         opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=5e-5)
 
         scheduler = ReduceLROnPlateau(opt, 'max', factor=0.25, patience=5, verbose=True, threshold=0.0001, cooldown=2,
-                                      min_lr=1e-7)
+                                      min_lr=1e-12)
 
         criterion = PHOSCLoss()
 
@@ -131,26 +131,29 @@ def main(args):
         best_epoch = 0
         for epoch in range(1, args.epochs + 1):
             mean_loss = train_one_epoch(model, criterion, data_loader_train, opt, device, epoch)
-            valid_acc = -1
 
+            acc = -1
             if validate_model:
                 acc, _, __ = accuracy_test(model, data_loader_valid, device)
 
                 if acc > mx_acc:
                     mx_acc = acc
-
                     # removes previous best weights
-                    if os.path.exists(f'{args.model}/epoch{best_epoch}.pt'):
-                        os.remove(f'{args.model}/epoch{best_epoch}.pt')
+                    if os.path.exists(f'{args.name}/epoch{best_epoch}.pt'):
+                        os.remove(f'{args.name}/epoch{best_epoch}.pt')
 
                     best_epoch = epoch
 
-                    torch.save(model.state_dict(), f'{args.model}/epoch{best_epoch}.pt')
+                    torch.save(model.state_dict(), f'{args.name}/epoch{best_epoch}.pt')
 
-            with open(args.model + '/' + 'log.csv', 'a') as f:
-                f.write(f'{epoch},{mean_loss},{acc}\n')
+                scheduler.step(acc)
 
-            scheduler.step(acc)
+            with open(args.name + '/' + 'log.csv', 'a') as f:
+                f.write(f'{epoch},{mean_loss},{acc},{opt.param_groups[0]["lr"]}\n')
+
+            
+
+        torch.save(model.state_dict(), f'{args.name}/epochs.pt')
 
     def testing():
         model.load_state_dict(torch.load(args.pretrained_weights))

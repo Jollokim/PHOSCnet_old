@@ -7,12 +7,12 @@ from modules.pyramidpooling import TemporalPyramidPooling
 from timm.models.registry import register_model
 
 __all__ = [
-    'PHOSCnet_temporalpooling',
+    'PHOSCnet_character_counter'
 ]
 
 
-class PHOSCnet(nn.Module):
-    def __init__(self):
+class CharacterCounterNet(nn.Module):
+    def __init__(self, outputs:int=17):
         super().__init__()
 
         self.conv = nn.Sequential(
@@ -48,7 +48,7 @@ class PHOSCnet(nn.Module):
 
         self.temporal_pool = TemporalPyramidPooling([1, 2, 5])
 
-        self.phos = nn.Sequential(
+        self.head = nn.Sequential(
             nn.Linear(4096, 4096),
             nn.ReLU(),
             nn.Dropout(),
@@ -56,29 +56,29 @@ class PHOSCnet(nn.Module):
             nn.ReLU(),
             nn.Dropout(),
 
-            nn.Linear(4096, 165),
-            nn.ReLU()
+            nn.Linear(4096, outputs),
+            nn.Softmax(1)
         )
 
-        self.phoc = nn.Sequential(
-            nn.Linear(4096, 4096),
-            nn.ReLU(),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(),
-            nn.Dropout(),
-
-            nn.Linear(4096, 604),
-            nn.Sigmoid()
-        )
+        
 
     def forward(self, x: torch.Tensor) -> dict:
         x = self.conv(x)
         x = self.temporal_pool(x)
 
-        return {'phos': self.phos(x), 'phoc': self.phoc(x)}
+        return self.head(x)
 
 
-@register_model
-def PHOSCnet_temporalpooling(**kwargs):
-    return PHOSCnet()
+@register_model()
+def PHOSCnet_character_counter(outputs=17, **kwargs):
+    return CharacterCounterNet(outputs)
+
+if __name__ == '__main__':
+    model = CharacterCounterNet(17)
+
+    x = torch.randn(5, 50, 250, 3).view(-1, 3, 50, 250)
+
+    y = model(x)
+
+    print(y)
+    print(y.shape)
