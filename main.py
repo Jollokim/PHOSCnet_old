@@ -2,7 +2,7 @@ import argparse
 import torch
 import os
 
-import modules.models
+from modules import models, residualmodels
 
 from timm import create_model
 from torchsummary import summary
@@ -10,9 +10,10 @@ from torchvision.transforms import transforms
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from modules.datasets import phosc_dataset
-from modules.engine import train_one_epoch, accuracy_test
+from modules.engine import train_one_epoch, zslAccuracyTest
 from modules.loss import PHOSCLoss
 
+import torch.nn as nn
 
 # function for defining all the commandline parameters
 def get_args_parser():
@@ -40,7 +41,7 @@ def get_args_parser():
 
     # Dataloader settings
     parser.add_argument('--batch_size', type=int, default=32, help='number of samples per iteration in the epoch')
-    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--num_workers', default=5, type=int)
 
     # optimizer settings
     parser.add_argument('--lr', type=float, default=0.0001, help='The learning rate')
@@ -110,6 +111,13 @@ def main(args):
 
     model = create_model(args.model).to(device)
 
+    device = "cpu"
+    if torch.cuda.is_available():
+        device = "cuda:0"
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model)
+    model.to(device)
+
     # print summary of model
     summary(model, (3, 50, 250))
 
@@ -134,7 +142,7 @@ def main(args):
 
             acc = -1
             if validate_model:
-                acc, _, __ = accuracy_test(model, data_loader_valid, device)
+                acc, _, __ = zslAccuracyTest(model, data_loader_valid, device)
 
                 if acc > mx_acc:
                     mx_acc = acc
@@ -158,10 +166,10 @@ def main(args):
     def testing():
         model.load_state_dict(torch.load(args.pretrained_weights))
 
-        acc_seen, _, __ = accuracy_test(model, data_loader_test_seen, device)
-        acc_unseen, _, __ = accuracy_test(model, data_loader_test_unseen, device)
+        acc_seen, _, __ = zslAccuracyTest(model, data_loader_test_seen, device)
+        acc_unseen, _, __ = zslAccuracyTest(model, data_loader_test_unseen, device)
 
-        with open(args.model + '/' + 'testresults.txt', 'a') as f:
+        with open(args.name + '/' + 'testresults.txt', 'a') as f:
             f.write(f'{args.model} test results\n')
             f.write(f'Seen acc: {acc_seen}\n')
             f.write(f'Unseen acc: {acc_unseen}\n')
