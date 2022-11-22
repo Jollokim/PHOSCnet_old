@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 
 from modules.pyramidpooling import TemporalPyramidPooling
+# from pyramidpooling import TemporalPyramidPooling
 
 from timm.models.registry import register_model
 
@@ -82,3 +83,11 @@ class PHOSCnet(nn.Module):
 @register_model
 def PHOSCnet_temporalpooling(**kwargs):
     return PHOSCnet()
+
+
+if __name__ == '__main__':
+    from torchsummary import summary
+
+    model = PHOSCnet()
+
+    summary(model, (3, 50, 250))
