@@ -35,7 +35,7 @@ class phosc_dataset(Dataset):
         self.df_all["phoc"] = phoc_vects
         self.df_all["phosc"] = phosc_vects
 
-        print(self.df_all)
+        # print(self.df_all)
 
         # print(self.df_all.iloc[0, 5].shape)
         # print(self.df_all.to_string())
@@ -66,12 +66,13 @@ class CharacterCounterDataset(Dataset):
         targets = []
 
         for word in words:
-            target = np.eye(1, longest_word_len, len(word)-1)
+            target = np.zeros((longest_word_len))
+            target[len(word)-1] = 1
             targets.append(target)
 
         self.df_all["target"] = targets
 
-        print(self.df_all)
+        # print(self.df_all)
 
         # print(self.df_all.iloc[0, 5].shape)
         # print(self.df_all.to_string())
@@ -85,6 +86,7 @@ class CharacterCounterDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
+        # returns the image, target vector and the corresponding word
         return image.float(), y.float(), self.df_all.iloc[index, 1]
 
     def __len__(self):
@@ -95,7 +97,14 @@ if __name__ == '__main__':
     from torchvision.transforms import transforms
 
     dataset = CharacterCounterDataset(17, 'image_data/IAM_Data/IAM_valid_unseen.csv', 'image_data/IAM_Data/IAM_valid', transform=transforms.ToTensor())
-
+    dataloader = torch.utils.data.DataLoader(dataset, 512)
     # print(dataset.df_all)
 
-    print(dataset.__getitem__(0))
+
+    for img, target, word in dataloader:
+        print(img.shape)
+        print(target.shape)
+        print('word')
+        quit()
+
+    # print(dataset.__getitem__(0))
