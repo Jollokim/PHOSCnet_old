@@ -11,7 +11,7 @@ import numpy as np
 
 def generate_36(word):
     '''The vector is a binary and stands for:
-    [0123456789abcdefghijklmnopqrstuvwxyz]
+    [0123456789abcdefghijklmnopqrstuvwxyz] 
     '''
     vector_36 = [0 for i in range(36)]
     for char in word:
@@ -21,6 +21,26 @@ def generate_36(word):
             vector_36[10+ord(char) - ord('a')] = 1
 
     return vector_36
+
+def generate_39(word):
+    '''The vector is a binary and stands for:
+    [0123456789abcdefghijklmnopqrstuvwxyzæøå] 
+    '''
+    vector_39 = [0 for i in range(39)]
+    for char in word:
+        if char.isdigit():
+            vector_39[ord(char) - ord('0')] = 1
+        elif char.isalpha():
+            if char == 'æ':
+                vector_39[36] = 1
+            elif char == 'ø':
+                vector_39[37] = 1
+            elif char == 'å':
+                vector_39[38] = 1
+            else:
+                vector_39[10+ord(char) - ord('a')] = 1
+
+    return vector_39
 
 # Generates PHOC component corresponding to 50 most frequent bi-grams of English
 
@@ -77,3 +97,7 @@ def label_maker(word_txt):
             label[word]=gen_phoc_label(word)
     return label
     #write_s_file(s_matrix_csv, s_matrix, word_list)
+
+
+if __name__ == '__main__':
+    print(generate_39('1aøæÅ'.lower()))
