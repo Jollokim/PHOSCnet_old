@@ -10,7 +10,8 @@ from timm.models.registry import register_model
 
 __all__ = [
     'RPnet',
-    'ResNet18Phosc'
+    'ResNet18Phosc',
+    'ResNet18Phosc_preload_conv'
 ]
 
 
@@ -255,7 +256,7 @@ class ResNet34(nn.Module):
 
 
 class ResNet18(nn.Module):
-    def __init__(self, in_channels, resblock, activation, res_start_dim=64, outputs=200):
+    def __init__(self, in_channels, resblock, activation, res_start_dim=64, phos_size=165, phoc_size=604):
         super().__init__()
 
         self.conv = nn.Sequential(
@@ -297,7 +298,7 @@ class ResNet18(nn.Module):
             nn.ReLU(),
             nn.Dropout(),
 
-            nn.Linear(4096, 165),
+            nn.Linear(4096, phos_size),
             nn.ReLU()
         )
 
@@ -306,7 +307,7 @@ class ResNet18(nn.Module):
             nn.ReLU(),
             nn.Dropout(),
 
-            nn.Linear(4096, 604),
+            nn.Linear(4096, phoc_size),
             nn.Sigmoid()
         )
 
@@ -316,6 +317,9 @@ class ResNet18(nn.Module):
 
         return {'phos': self.phos(x), 'phoc': self.phoc(x)}
 
+    def preload_conv_layer(self, weights_file):
+        self.conv.load_state_dict(torch.load(weights_file))
+
 
 @register_model
 def RPnet(**kwargs):
@@ -323,12 +327,39 @@ def RPnet(**kwargs):
 
 @register_model
 def ResNet18Phosc(**kwargs):
-    return ResNet18(3, ResBlockProjection, nn.ReLU)
+    return ResNet18(3, ResBlockProjection, nn.ReLU, phos_size=kwargs['phos_size'], phoc_size=kwargs['phoc_size'])
+
+@register_model
+def ResNet18Phosc_preload_conv(**kwargs):
+    model = ResNet18(3, ResBlockProjection, nn.ReLU, phos_size=kwargs['phos_size'], phoc_size=kwargs['phoc_size'])
+    model.preload_conv_layer('logs_weights/ResNet18Phosc/conv_layers.pt')
+
+    # freeze convolutional part
+    # for param in model.conv.parameters():
+    #     param.requires_grad = False
+
+    return model
+
 
 
 if __name__ == '__main__':
     from torchsummary import summary
 
-    model = ResNet18(3, ResBlockProjection, nn.ReLU)
+    model = ResNet18Phosc_preload_conv(phos_size=165, phoc_size=604)
 
     summary(model, (3, 50, 250))
+
+    model.load_state_dict(torch.load('logs_weights/ResNet18Phosc/epoch41.pt'))
+
+    torch.save(model.conv.state_dict(), 'logs_weights/ResNet18Phosc/conv_layers.pt')
+
+    model.preload_conv_layer('logs_weights/ResNet18Phosc/conv_layers.pt')
+
+
+    x = torch.randn((5, 3, 50, 250)).to('cuda')
+
+    vector_dict = model(x)
+
+    vectors = torch.cat((vector_dict['phos'], vector_dict['phoc']), dim=1)
+
+    print(vectors.shape)
