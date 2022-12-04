@@ -82,10 +82,10 @@ def augment_word_class(df: pd.DataFrame,
 def main():
     random.seed(1)
 
-    in_folder = r'image_data/IAM_Data/IAM_train'
-    out_folder = r'image_data/IAM_Data/IAM_train_augword250'
+    in_folder = r'image_data/norwegian_data/train_threshold_split1'
+    out_folder = r'image_data/norwegian_data/train_threshold_split1_word50'
 
-    image_per_word = 250
+    image_per_word = 50
 
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
