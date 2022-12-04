@@ -2,16 +2,21 @@ import os
 
 import torch
 from torch.utils.data import Dataset
-from skimage import io
+# from skimage import io
+import cv2 as cv
 
-from utils import generate_phoc_vector, generate_phos_vector
+from modules.utils import generate_phoc_vector, generate_phos_vector, set_phos_version, set_phoc_version
+# from utils import generate_phoc_vector, generate_phos_vector, set_phos_version, set_phoc_version
 
 import pandas as pd
 import numpy as np
 
 
 class phosc_dataset(Dataset):
-    def __init__(self, csvfile, root_dir, transform=None):
+    def __init__(self, csvfile, root_dir, language='eng', transform=None):
+        set_phos_version(language)
+        set_phoc_version(language)
+
         self.df_all = pd.read_csv(csvfile)
         self.root_dir = root_dir
         self.transform = transform
@@ -37,23 +42,35 @@ class phosc_dataset(Dataset):
 
         # print(self.df_all)
 
-        # print(self.df_all.iloc[0, 5].shape)
-        # print(self.df_all.to_string())
-
     def __getitem__(self, index):
         img_path = os.path.join(self.root_dir, self.df_all.iloc[index, 0])
-        image = io.imread(img_path)
+        image = cv.imread(img_path)
 
-        y = torch.tensor(self.df_all.iloc[index, len(self.df_all.columns) - 1])
+        # print(image.shape)
 
         if self.transform:
             image = self.transform(image)
+        word = self.df_all.iloc[index, 1]
 
-        return image.float(), y.float(), self.df_all.iloc[index, 1]
+        phos = torch.tensor(self.df_all.iloc[index, -3])
+        phoc = torch.tensor(self.df_all.iloc[index, -2])
+        phosc = torch.tensor(self.df_all.iloc[index, -1])
+
+        item = {
+            'image': image.float(),
+            'word': word,
+            'y_vectors': {
+                'phos': phos.float(),
+                'phoc': phoc.float(),
+                'phosc': phosc.float()
+            }
+        }
+
+        return item
+        # return image.float(), y.float(), self.df_all.iloc[index, 1]
 
     def __len__(self):
         return len(self.df_all)
-
 
 class CharacterCounterDataset(Dataset):
     def __init__(self, longest_word_len, csvfile, root_dir, transform=None):
@@ -79,7 +96,7 @@ class CharacterCounterDataset(Dataset):
 
     def __getitem__(self, index):
         img_path = os.path.join(self.root_dir, self.df_all.iloc[index, 0])
-        image = io.imread(img_path)
+        image = cv.imread(img_path)
 
         y = torch.tensor(self.df_all.iloc[index, len(self.df_all.columns) - 1])
 
@@ -96,15 +113,18 @@ class CharacterCounterDataset(Dataset):
 if __name__ == '__main__':
     from torchvision.transforms import transforms
 
-    dataset = CharacterCounterDataset(17, 'image_data/IAM_Data/IAM_valid_unseen.csv', 'image_data/IAM_Data/IAM_valid', transform=transforms.ToTensor())
-    dataloader = torch.utils.data.DataLoader(dataset, 512)
+    # dataset = phosc_dataset('image_data/IAM_Data/IAM_valid_unseen.csv', 'image_data/IAM_Data/IAM_valid', 'nor', transform=transforms.ToTensor())
+    dataset = phosc_dataset('image_data/norwegian_data/valid_gray_split1.csv', 'image_data/norwegian_data/valid_gray_split1', 'nor', transform=transforms.ToTensor())
+    # dataset = phosc_dataset('image_data/norwegian_data/train_gray_split1_word50.csv', 'image_data/norwegian_data/train_gray_split1_word50', 'nor', transform=transforms.ToTensor())
+    dataloader = torch.utils.data.DataLoader(dataset, 5)
     # print(dataset.df_all)
 
 
-    for img, target, word in dataloader:
-        print(img.shape)
-        print(target.shape)
-        print('word')
+    for batch in dataloader:
+        print(batch['image'].shape)
+        print(batch['y_vectors']['phos'].shape)
+        print(batch['y_vectors']['phoc'].shape)
+        print(batch['y_vectors']['phosc'].shape)
         quit()
 
     # print(dataset.__getitem__(0))

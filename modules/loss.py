@@ -12,8 +12,8 @@ class PHOSCLoss(nn.Module):
         self.phoc_w = phoc_w
 
     def forward(self, y: dict, targets: torch.Tensor):
-        phos_loss = self.phos_w * F.mse_loss(y['phos'], targets[:, 0:165])
-        phoc_loss = self.phoc_w * F.cross_entropy(y['phoc'], targets[:, 165:769])
+        phos_loss = self.phos_w * F.mse_loss(y['phos'], targets['phos'])
+        phoc_loss = self.phoc_w * F.cross_entropy(y['phoc'], targets['phoc'])
 
         loss = phos_loss + phoc_loss
         return loss

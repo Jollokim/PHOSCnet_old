@@ -5,7 +5,8 @@ import torch.nn as nn
 
 from typing import Iterable
 from modules.loss import PHOSCLoss
-from utils import get_map_dict
+
+from modules.utils import get_map_dict
 from modules.datasets import CharacterCounterDataset
 
 
@@ -23,27 +24,25 @@ def train_one_epoch(model: torch.nn.Module, criterion: PHOSCLoss,
 
     pbar = tqdm(dataloader)
 
-    for samples, targets, _ in pbar:
+    for batch in pbar:
         # Putting images and targets on given device
-        samples = samples.to(device)
-        targets = targets.to(device)
+        batch['image'] = batch['image'].to(device, non_blocking=True)
+        batch['y_vectors']['phos'] = batch['y_vectors']['phos'].to(device, non_blocking=True)
+        batch['y_vectors']['phoc'] = batch['y_vectors']['phoc'].to(device, non_blocking=True)
+        batch['y_vectors']['phosc'] = batch['y_vectors']['phosc'].to(device, non_blocking=True)
 
         # zeroing gradients before next pass through
         model.zero_grad()
 
         # passing images in batch through model
-        outputs = model(samples)
+        outputs = model(batch['image'])
 
         # calculating loss and backpropagation the loss through the network
-        loss = criterion(outputs, targets)
+        loss = criterion(outputs, batch['y_vectors'])
         loss.backward()
 
         # adjusting weight according to backpropagation
         optimizer.step()
-
-        # print(f'loss: {loss.item()}, step progression: {batch}/{n_batches}, epoch: {epoch}')
-
-        batch += 1
 
         # accumulating loss over complete epoch
         loss_over_epoch += loss.item()
@@ -86,15 +85,22 @@ def zslAccuracyTest(model, dataloader: Iterable, device: torch.device):
     # Predictions list
     Predictions = []
 
-    for samples, targets, words in tqdm(dataloader):
-        samples = samples.to(device)
+    # this will not work with the current dataloader
+    for batch in tqdm(dataloader):
 
-        vector_dict = model(samples)
+        batch['image'] = batch['image'].to(device, non_blocking=True)
+        batch['y_vectors']['phos'] = batch['y_vectors']['phos'].to(device, non_blocking=True)
+        batch['y_vectors']['phoc'] = batch['y_vectors']['phoc'].to(device, non_blocking=True)
+        batch['y_vectors']['phosc'] = batch['y_vectors']['phosc'].to(device, non_blocking=True)
+
+        vector_dict = model(batch['image'])
         vectors = torch.cat((vector_dict['phos'], vector_dict['phoc']), dim=1)
 
-        for i in range(len(words)):
-            target_word = words[i]
-            pred_vector = vectors[i].view(-1, 769)
+        phosc_size = vectors.shape[1]
+
+        for i in range(len(batch['word'])):
+            target_word = batch['word'][i]
+            pred_vector = vectors[i].view(-1, phosc_size)
             mx = -1
 
             for w in word_map:
@@ -103,7 +109,7 @@ def zslAccuracyTest(model, dataloader: Iterable, device: torch.device):
                     mx = temp
                     pred_word = w
 
-            Predictions.append((samples[i], target_word, pred_word))
+            Predictions.append((batch['image'][i], target_word, pred_word))
 
             if pred_word == target_word:
                 n_correct += 1
@@ -118,6 +124,8 @@ def zslAccuracyTest(model, dataloader: Iterable, device: torch.device):
     df = pd.DataFrame(Predictions, columns=["Image", "True Label", "Predicted Label"])
 
     acc = n_correct / no_of_images
+
+    print('acc:', acc)
 
     return acc, df, acc_by_len
 
