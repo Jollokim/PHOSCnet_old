@@ -27,12 +27,20 @@ def create_alphabet_dictionary(csv_file):
     return alphabet_dict
 
 
-alphabet_csv = "modules/utils/Alphabet.csv"
+def set_phos_version(version: str='eng'):
+    global alphabet_csv, alphabet_dict, csv_num_cols, numpy_csv
 
-alphabet_dict = create_alphabet_dictionary(alphabet_csv)
-csv_num_cols = get_number_of_columns(alphabet_csv)
-numpy_csv = np.genfromtxt(alphabet_csv, dtype=int, delimiter=",")
-numpy_csv = np.delete(numpy_csv, 0, 1)
+    if version == 'eng':
+        alphabet_csv = "modules/utils/Alphabet.csv"
+    elif version == 'nor':
+        alphabet_csv = "modules/utils/AlphabetNorwegian.csv"
+
+    
+
+    alphabet_dict = create_alphabet_dictionary(alphabet_csv)
+    csv_num_cols = get_number_of_columns(alphabet_csv)
+    numpy_csv = np.genfromtxt(alphabet_csv, dtype=int, delimiter=",")
+    numpy_csv = np.delete(numpy_csv, 0, 1)
 
 
 # Input: A word segment(string)
@@ -81,3 +89,12 @@ def label_maker(word_txt):
             label[word] = generate_label(word)
     return label
     # write_s_file(s_matrix_csv, s_matrix, word_list)
+
+
+if __name__ == '__main__':
+    set_phos_version('eng')
+    regular_phos = generate_label('abc')
+    # new_phos = generate_label_NOR('zz')
+    
+    print(regular_phos)
+    print(len(regular_phos))

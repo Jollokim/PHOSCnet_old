@@ -8,12 +8,13 @@ image_data
 # output, slurm related
 *.out
 *.sbatch
-
+logs_weights
 
 # other
 PHOSCnet_residual/
 PHOSCnet_temporalpooling/
 new_IAM_split_PHOSCnet_temporalpooling/
+test.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

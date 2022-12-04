@@ -2,7 +2,7 @@ import argparse
 import torch
 import os
 
-import modules.models
+from modules import models, residualmodels
 
 from timm import create_model
 from torchsummary import summary
@@ -10,9 +10,10 @@ from torchvision.transforms import transforms
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from modules.datasets import phosc_dataset
-from modules.engine import train_one_epoch, accuracy_test
+from modules.engine import train_one_epoch, zslAccuracyTest
 from modules.loss import PHOSCLoss
 
+import torch.nn as nn
 
 # function for defining all the commandline parameters
 def get_args_parser():
@@ -40,13 +41,19 @@ def get_args_parser():
 
     # Dataloader settings
     parser.add_argument('--batch_size', type=int, default=32, help='number of samples per iteration in the epoch')
-    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--num_workers', default=5, type=int)
 
     # optimizer settings
     parser.add_argument('--lr', type=float, default=0.0001, help='The learning rate')
 
     # trainng related parameters
     parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train for')
+
+    # model related
+    parser.add_argument('--phos_size', type=int, default=165, help='Phos representation size')
+    parser.add_argument('--phoc_size', type=int, default=604, help='Phoc representation size')
+    parser.add_argument('--language', type=str, default='eng', choices=['eng', 'nor'], help='language which help decide which phosc representation to use')
+
 
     return parser
 
@@ -55,7 +62,9 @@ def main(args):
     print('Creating dataset...')
     if args.mode == 'train':
         dataset_train = phosc_dataset(args.train_csv,
-                                      args.train_folder, transforms.ToTensor())
+                                      args.train_folder,
+                                      args.language,
+                                      transforms.ToTensor())
 
         data_loader_train = torch.utils.data.DataLoader(
             dataset_train,
@@ -71,7 +80,9 @@ def main(args):
             validate_model = True
 
             dataset_valid = phosc_dataset(args.valid_csv,
-                                          args.valid_folder, transforms.ToTensor())
+                                          args.valid_folder,
+                                          args.language,
+                                          transforms.ToTensor())
 
             data_loader_valid = torch.utils.data.DataLoader(
                 dataset_valid,
@@ -83,7 +94,9 @@ def main(args):
 
     elif args.mode == 'test':
         dataset_test_seen = phosc_dataset(args.test_csv_seen,
-                                     args.test_folder_seen, transforms.ToTensor())
+                                     args.test_folder_seen,
+                                     args.language,
+                                     transforms.ToTensor())
 
         data_loader_test_seen = torch.utils.data.DataLoader(
             dataset_test_seen,
@@ -94,7 +107,9 @@ def main(args):
         )
 
         dataset_test_unseen = phosc_dataset(args.test_csv_unseen,
-                                     args.test_folder_unseen, transforms.ToTensor())
+                                     args.test_folder_unseen,
+                                     args.language,
+                                     transforms.ToTensor())
 
         data_loader_test_unseen = torch.utils.data.DataLoader(
             dataset_test_unseen,
@@ -108,7 +123,15 @@ def main(args):
     print('Training on GPU:', torch.cuda.is_available())
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = create_model(args.model).to(device)
+    # TODO: add phos and phoc size to create_model
+    model = create_model(args.model, phos_size=args.phos_size, phoc_size=args.phoc_size).to(device)
+
+    device = "cpu"
+    if torch.cuda.is_available():
+        device = "cuda:0"
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model)
+    model.to(device)
 
     # print summary of model
     summary(model, (3, 50, 250))
@@ -134,7 +157,7 @@ def main(args):
 
             acc = -1
             if validate_model:
-                acc, _, __ = accuracy_test(model, data_loader_valid, device)
+                acc, _, __ = zslAccuracyTest(model, data_loader_valid, device)
 
                 if acc > mx_acc:
                     mx_acc = acc
@@ -158,10 +181,10 @@ def main(args):
     def testing():
         model.load_state_dict(torch.load(args.pretrained_weights))
 
-        acc_seen, _, __ = accuracy_test(model, data_loader_test_seen, device)
-        acc_unseen, _, __ = accuracy_test(model, data_loader_test_unseen, device)
+        acc_seen, _, __ = zslAccuracyTest(model, data_loader_test_seen, device)
+        acc_unseen, _, __ = zslAccuracyTest(model, data_loader_test_unseen, device)
 
-        with open(args.model + '/' + 'testresults.txt', 'a') as f:
+        with open(args.name + '/' + 'testresults.txt', 'a') as f:
             f.write(f'{args.model} test results\n')
             f.write(f'Seen acc: {acc_seen}\n')
             f.write(f'Unseen acc: {acc_unseen}\n')

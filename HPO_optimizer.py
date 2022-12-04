@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from torchvision.transforms import transforms
 
-from modules.engine import train_one_epoch, accuracy_test
+from modules.engine import train_one_epoch, zslAccuracyTest
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -86,7 +86,7 @@ def objective(trial: optuna.trial.Trial):
         mean_loss = train_one_epoch(model, criterion, data_loader_train, opt, device, epoch)
 
         acc = -1
-        acc, _, __ = accuracy_test(model, data_loader_valid, device)
+        acc, _, __ = zslAccuracyTest(model, data_loader_valid, device)
 
         if acc > mx_acc:
             mx_acc = acc
@@ -96,7 +96,7 @@ def objective(trial: optuna.trial.Trial):
             scheduler.step(acc)
 
 
-    accuracy = accuracy_test(model, data_loader_test_seen)
+    accuracy = zslAccuracyTest(model, data_loader_test_seen)
 
     return accuracy
 

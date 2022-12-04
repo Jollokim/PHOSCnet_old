@@ -82,8 +82,10 @@ def augment_word_class(df: pd.DataFrame,
 def main():
     random.seed(1)
 
-    in_folder = r'image_data/IamSplit/trimmed_data/train'
-    out_folder = r'image_data/IamSplit/augmented_data/train'
+    in_folder = r'image_data/norwegian_data/train_threshold_split1'
+    out_folder = r'image_data/norwegian_data/train_threshold_split1_word50'
+
+    image_per_word = 50
 
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
@@ -96,7 +98,7 @@ def main():
 
     for word in tqdm(word_dict.keys()):
         df = augment_word_class(
-            df, word, word_dict[word], in_folder, out_folder, 50)
+            df, word, word_dict[word], in_folder, out_folder, image_per_word)
 
     
     df.to_csv(f'{out_folder}.csv', index=False)
