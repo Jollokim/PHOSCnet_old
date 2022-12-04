@@ -49,6 +49,12 @@ def get_args_parser():
     # trainng related parameters
     parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train for')
 
+    # model related
+    parser.add_argument('--phos_size', type=int, default=165, help='Phos representation size')
+    parser.add_argument('--phoc_size', type=int, default=604, help='Phoc representation size')
+    parser.add_argument('--language', type=str, default='eng', choices=['eng', 'nor'], help='language which help decide which phosc representation to use')
+
+
     return parser
 
 
@@ -56,7 +62,9 @@ def main(args):
     print('Creating dataset...')
     if args.mode == 'train':
         dataset_train = phosc_dataset(args.train_csv,
-                                      args.train_folder, transforms.ToTensor())
+                                      args.train_folder,
+                                      args.language,
+                                      transforms.ToTensor())
 
         data_loader_train = torch.utils.data.DataLoader(
             dataset_train,
@@ -72,7 +80,9 @@ def main(args):
             validate_model = True
 
             dataset_valid = phosc_dataset(args.valid_csv,
-                                          args.valid_folder, transforms.ToTensor())
+                                          args.valid_folder,
+                                          args.language,
+                                          transforms.ToTensor())
 
             data_loader_valid = torch.utils.data.DataLoader(
                 dataset_valid,
@@ -84,7 +94,9 @@ def main(args):
 
     elif args.mode == 'test':
         dataset_test_seen = phosc_dataset(args.test_csv_seen,
-                                     args.test_folder_seen, transforms.ToTensor())
+                                     args.test_folder_seen,
+                                     args.language,
+                                     transforms.ToTensor())
 
         data_loader_test_seen = torch.utils.data.DataLoader(
             dataset_test_seen,
@@ -95,7 +107,9 @@ def main(args):
         )
 
         dataset_test_unseen = phosc_dataset(args.test_csv_unseen,
-                                     args.test_folder_unseen, transforms.ToTensor())
+                                     args.test_folder_unseen,
+                                     args.language,
+                                     transforms.ToTensor())
 
         data_loader_test_unseen = torch.utils.data.DataLoader(
             dataset_test_unseen,
@@ -109,7 +123,8 @@ def main(args):
     print('Training on GPU:', torch.cuda.is_available())
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = create_model(args.model).to(device)
+    # TODO: add phos and phoc size to create_model
+    model = create_model(args.model, phos_size=args.phos_size, phoc_size=args.phoc_size).to(device)
 
     device = "cpu"
     if torch.cuda.is_available():
