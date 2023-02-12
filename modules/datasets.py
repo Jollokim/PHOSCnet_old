@@ -114,7 +114,7 @@ if __name__ == '__main__':
     from torchvision.transforms import transforms
 
     # dataset = phosc_dataset('image_data/IAM_Data/IAM_valid_unseen.csv', 'image_data/IAM_Data/IAM_valid', 'nor', transform=transforms.ToTensor())
-    dataset = phosc_dataset('image_data/norwegian_data/valid_gray_split1.csv', 'image_data/norwegian_data/valid_gray_split1', 'nor', transform=transforms.ToTensor())
+    dataset = phosc_dataset('image_data/GW_Data/cv1_valid_seen.csv', 'image_data/GW_Data/CV1_valid', 'eng', transform=transforms.ToTensor())
     # dataset = phosc_dataset('image_data/norwegian_data/train_gray_split1_word50.csv', 'image_data/norwegian_data/train_gray_split1_word50', 'nor', transform=transforms.ToTensor())
     dataloader = torch.utils.data.DataLoader(dataset, 5)
     # print(dataset.df_all)

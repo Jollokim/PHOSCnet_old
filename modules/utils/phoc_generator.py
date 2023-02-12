@@ -18,11 +18,10 @@ def generate_chars(word):
     '''The vector is a binary and stands for:
     [0123456789abcdefghijklmnopqrstuvwxyz] 
     '''
-    if version == 'eng':
+    if version == 'eng' or version == 'gw':
         size = 36
     elif version == 'nor':
         size = 39
-
 
     vector = [0 for i in range(size)]
     for char in word:
@@ -51,7 +50,7 @@ def generate_chars(word):
 # Generates PHOC component corresponding to 50 most frequent bi-grams of English
 
 def generate_50(word):
-    if version == 'eng':
+    if version == 'eng' or version == 'gw':
         bigram = ['th', 'he', 'in', 'er', 'an', 're', 'es', 'on', 'st', 'nt', 'en',
                 'at', 'ed', 'nd', 'to', 'or', 'ea', 'ti', 'ar', 'te', 'ng', 'al',
                 'it', 'as', 'is', 'ha', 'et', 'se', 'ou', 'of', 'le', 'sa', 've',
@@ -80,9 +79,9 @@ def generate_phoc_vector(word):
     word = word.lower()
     vector = []
     L = len(word)
-    for split in range(2, 6):
-        parts = L//split
-        for mul in range(split-1):
+    for split in range(2, 6): #split 3 
+        parts = L//split # parts 3
+        for mul in range(split-1): # 0 - 2
             vector += generate_chars(word[mul*parts:mul*parts+parts])
         vector += generate_chars(word[(split-1)*parts:L])
     # Append the most common 50 bigram text using L2 split

@@ -32,6 +32,8 @@ def set_phos_version(version: str='eng'):
 
     if version == 'eng':
         alphabet_csv = "modules/utils/Alphabet.csv"
+    elif version == 'gw':
+        alphabet_csv = 'modules/utils/AlphabetGW.csv'
     elif version == 'nor':
         alphabet_csv = "modules/utils/AlphabetNorwegian.csv"
 
