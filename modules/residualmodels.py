@@ -141,6 +141,71 @@ class ResBlockProjection(nn.Module):
         return self.act2(x)
 
 
+class ResNet18(nn.Module):
+    def __init__(self, in_channels, resblock, activation, res_start_dim=64, phos_size=165, phoc_size=604):
+        super().__init__()
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, res_start_dim, kernel_size=7, stride=2),
+            nn.BatchNorm2d(res_start_dim),
+            activation(),
+
+            nn.MaxPool2d(kernel_size=3, stride=2),
+
+            # res blocks
+            resblock(res_start_dim, res_start_dim, downsample=False,
+                     activation=activation, residual_tail='init'),
+            resblock(res_start_dim, res_start_dim,
+                     downsample=False, activation=activation),
+            
+
+            resblock(res_start_dim, res_start_dim*2,
+                     downsample=True, activation=activation),
+            resblock(res_start_dim*2, res_start_dim*2,
+                     downsample=False, activation=activation),
+            
+
+            resblock(res_start_dim*2, res_start_dim*4,
+                     downsample=True, activation=activation),
+            resblock(res_start_dim*4, res_start_dim*4,
+                     downsample=False, activation=activation),
+            
+
+            resblock(res_start_dim*4, res_start_dim*8,
+                     downsample=True, activation=activation),
+            resblock(res_start_dim*8, res_start_dim*8, downsample=False,
+                     activation=activation, residual_tail='last')
+        )
+
+        self.temporal_pool = TemporalPyramidPooling([1, 2, 5])
+
+        self.phos = nn.Sequential(
+            nn.Linear(4096, 4096),
+            nn.ReLU(),
+            nn.Dropout(),
+
+            nn.Linear(4096, phos_size),
+            nn.ReLU()
+        )
+
+        self.phoc = nn.Sequential(
+            nn.Linear(4096, 4096),
+            nn.ReLU(),
+            nn.Dropout(),
+
+            nn.Linear(4096, phoc_size),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x: torch.Tensor) -> dict:
+        x = self.conv(x)
+        x = self.temporal_pool(x)
+
+        return {'phos': self.phos(x), 'phoc': self.phoc(x)}
+
+    def preload_conv_layer(self, weights_file):
+        self.conv.load_state_dict(torch.load(weights_file))
+
 class ResNet34(nn.Module):
     def __init__(self, in_channels, resblock, activation, res_start_dim=64, outputs=200):
         super().__init__()
@@ -255,72 +320,6 @@ class ResNet34(nn.Module):
         return {'phos': self.phos(x), 'phoc': self.phoc(x)}
 
 
-class ResNet18(nn.Module):
-    def __init__(self, in_channels, resblock, activation, res_start_dim=64, phos_size=165, phoc_size=604):
-        super().__init__()
-
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, res_start_dim, kernel_size=7, stride=2),
-            nn.BatchNorm2d(res_start_dim),
-            activation(),
-
-            nn.MaxPool2d(kernel_size=3, stride=2),
-
-            # res blocks
-            resblock(res_start_dim, res_start_dim, downsample=False,
-                     activation=activation, residual_tail='init'),
-            resblock(res_start_dim, res_start_dim,
-                     downsample=False, activation=activation),
-            
-
-            resblock(res_start_dim, res_start_dim*2,
-                     downsample=True, activation=activation),
-            resblock(res_start_dim*2, res_start_dim*2,
-                     downsample=False, activation=activation),
-            
-
-            resblock(res_start_dim*2, res_start_dim*4,
-                     downsample=True, activation=activation),
-            resblock(res_start_dim*4, res_start_dim*4,
-                     downsample=False, activation=activation),
-            
-
-            resblock(res_start_dim*4, res_start_dim*8,
-                     downsample=True, activation=activation),
-            resblock(res_start_dim*8, res_start_dim*8, downsample=False,
-                     activation=activation, residual_tail='last')
-        )
-
-        self.temporal_pool = TemporalPyramidPooling([1, 2, 5])
-
-        self.phos = nn.Sequential(
-            nn.Linear(4096, 4096),
-            nn.ReLU(),
-            nn.Dropout(),
-
-            nn.Linear(4096, phos_size),
-            nn.ReLU()
-        )
-
-        self.phoc = nn.Sequential(
-            nn.Linear(4096, 4096),
-            nn.ReLU(),
-            nn.Dropout(),
-
-            nn.Linear(4096, phoc_size),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x: torch.Tensor) -> dict:
-        x = self.conv(x)
-        x = self.temporal_pool(x)
-
-        return {'phos': self.phos(x), 'phoc': self.phoc(x)}
-
-    def preload_conv_layer(self, weights_file):
-        self.conv.load_state_dict(torch.load(weights_file))
-
-
 @register_model
 def RPnet(**kwargs):
     return ResidualPHOSCnet()
@@ -345,15 +344,19 @@ def ResNet18Phosc_preload_conv(**kwargs):
 if __name__ == '__main__':
     from torchsummary import summary
 
-    model = ResNet18Phosc_preload_conv(phos_size=165, phoc_size=604)
+    # model = ResNet18(3, ResBlockProjection, nn.ReLU, phos_size=kwargs['phos_size'], phoc_size=kwargs['phoc_size'])
+    model = ResNet18Phosc(phos_size=165, phoc_size=604).to('cuda')
+
+    #model = ResNet18Phosc_preload_conv(phos_size=165, phoc_size=604)
+    # model = RPnet(phos_size=165, phoc_size=604)
 
     summary(model, (3, 50, 250))
 
-    model.load_state_dict(torch.load('logs_weights/ResNet18Phosc/epoch41.pt'))
+    # model.load_state_dict(torch.load('logs_weights/ResNet18Phosc/epoch41.pt'))
 
-    torch.save(model.conv.state_dict(), 'logs_weights/ResNet18Phosc/conv_layers.pt')
+    # torch.save(model.conv.state_dict(), 'logs_weights/ResNet18Phosc/conv_layers.pt')
 
-    model.preload_conv_layer('logs_weights/ResNet18Phosc/conv_layers.pt')
+    # model.preload_conv_layer('logs_weights/ResNet18Phosc/conv_layers.pt')
 
 
     x = torch.randn((5, 3, 50, 250)).to('cuda')
