@@ -10,7 +10,7 @@ from torchvision.transforms import transforms
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from modules.datasets import phosc_dataset
-from modules.engine import train_one_epoch, zslAccuracyTest
+from modules.engine import train_one_epoch, zslAccuracyTest, gzslAccuracyTest
 from modules.loss import PHOSCLoss
 
 import torch.nn as nn
@@ -22,6 +22,11 @@ def get_args_parser():
     # Model mode:
     parser.add_argument('--mode', type=str, choices=['train', 'test', 'pass'], required=True,
                         help='train or test a model')
+
+    # Testing method gzsl or zsl
+    parser.add_argument('--testing_mode', type=str, choices=['zsl', 'gzsl'], required=False,
+                        help='zsl or gzsl testing method')
+    
     # Model settings
     parser.add_argument('--name', type=str, help='Name of run')
     parser.add_argument('--model', type=str, help='Name of model')
@@ -52,7 +57,7 @@ def get_args_parser():
     # model related
     parser.add_argument('--phos_size', type=int, default=165, help='Phos representation size')
     parser.add_argument('--phoc_size', type=int, default=604, help='Phoc representation size')
-    parser.add_argument('--language', type=str, default='eng', choices=['eng', 'nor'], help='language which help decide which phosc representation to use')
+    parser.add_argument('--language', type=str, default='eng', choices=['eng', 'nor', 'gw'], help='language which help decide which phosc representation to use')
 
 
     return parser
@@ -181,15 +186,21 @@ def main(args):
     def testing():
         model.load_state_dict(torch.load(args.pretrained_weights))
 
-        acc_seen, _, __ = zslAccuracyTest(model, data_loader_test_seen, device)
-        acc_unseen, _, __ = zslAccuracyTest(model, data_loader_test_unseen, device)
+        print(f'Testing {args.testing_mode}')
+
+        if args.testing_mode == 'zsl':
+            acc_seen, _, __ = zslAccuracyTest(model, data_loader_test_seen, device)
+            acc_unseen, _, __ = zslAccuracyTest(model, data_loader_test_unseen, device)
+        elif args.testing_mode == 'gzsl':
+            acc_seen, _, __ = gzslAccuracyTest(model, data_loader_test_seen, data_loader_test_unseen, device)
+            acc_unseen, _, __ = gzslAccuracyTest(model, data_loader_test_unseen, data_loader_test_seen, device)
 
         with open(args.name + '/' + 'testresults.txt', 'a') as f:
-            f.write(f'{args.model} test results\n')
+            f.write(f'{args.model} {args.testing_mode} test results\n')
             f.write(f'Seen acc: {acc_seen}\n')
             f.write(f'Unseen acc: {acc_unseen}\n')
 
-        print(f'accuracies of model: {args.model}')
+        print(f'{args.testing_mode} accuracies of model: {args.model}')
         print('Seen accuracies:', acc_seen)
         print('Unseen accuracies:', acc_unseen)
 
