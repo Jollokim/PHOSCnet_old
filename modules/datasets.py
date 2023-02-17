@@ -62,7 +62,8 @@ class phosc_dataset(Dataset):
             'y_vectors': {
                 'phos': phos.float(),
                 'phoc': phoc.float(),
-                'phosc': phosc.float()
+                'phosc': phosc.float(),
+                'sim': 1
             }
         }
 
@@ -125,6 +126,7 @@ if __name__ == '__main__':
         print(batch['y_vectors']['phos'].shape)
         print(batch['y_vectors']['phoc'].shape)
         print(batch['y_vectors']['phosc'].shape)
+        print(batch['y_vectors']['sim'].shape)
         quit()
 
     # print(dataset.__getitem__(0))

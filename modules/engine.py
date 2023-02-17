@@ -30,6 +30,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: PHOSCLoss,
         batch['y_vectors']['phos'] = batch['y_vectors']['phos'].to(device, non_blocking=True)
         batch['y_vectors']['phoc'] = batch['y_vectors']['phoc'].to(device, non_blocking=True)
         batch['y_vectors']['phosc'] = batch['y_vectors']['phosc'].to(device, non_blocking=True)
+        batch['y_vectors']['sim'] = batch['y_vectors']['sim'].to(device, non_blocking=True)
 
         # zeroing gradients before next pass through
         model.zero_grad()
@@ -135,7 +136,7 @@ def zslAccuracyTest(model, dataloader: Iterable, device: torch.device):
 # dataloader_secondary contains the samples which won't be tested, but which words should also be added to the search space
 # example: _main = seen_words_dataloader, _secondary = unseen_words_dataloader. For seen gzsl acc. Reverse for unseen gzsl acc.
 @torch.no_grad()
-def gzslAccuracyTest(model, dataloader_main: Iterable, dataloader_secondary: Iterable, device: torch.device):
+def gzslAccuracyTest(model, dataloader_main: Iterable, dataloader_secondary: Iterable, device: torch.device, words_list=None):
     # set in model in training mode
     model.eval()
 
@@ -144,12 +145,17 @@ def gzslAccuracyTest(model, dataloader_main: Iterable, dataloader_secondary: Ite
     df_unseen = dataloader_secondary.dataset.df_all
 
     # create list for seen and unseen words
-    seen_words = list(set(df_seen['Word']))
-    unseen_words = list(set(df_unseen['Word']))
-    words = list(set(seen_words + unseen_words))
+    if words_list is None:
+        seen_words = list(set(df_seen['Word']))
+        unseen_words = list(set(df_unseen['Word']))
+        words = list(set(seen_words + unseen_words))
 
-    print('size seen map', len(seen_words))
-    print('size unseen map',len(unseen_words))
+        print('size seen map', len(seen_words))
+        print('size unseen map',len(unseen_words))
+    else:
+        words = words_list
+
+    
     print('size total map',len(words))
 
     # gets the word map dictionary
@@ -239,7 +245,7 @@ def gzslAccuracyTestAni(model, allWords, dataloader: Iterable, device: torch.dev
     n_correct = 0
     n_correctGzsl = 0
 
-    no_of_images = len(df)
+    no_of_images = len(allWords)
 
     # accuracy per word length
     acc_by_len = dict()
