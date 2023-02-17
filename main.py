@@ -2,6 +2,8 @@ import argparse
 import torch
 import os
 
+import pandas as pd
+
 from modules import models, residualmodels
 
 from timm import create_model
@@ -10,8 +12,8 @@ from torchvision.transforms import transforms
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from modules.datasets import phosc_dataset
-from modules.engine import train_one_epoch, zslAccuracyTest, gzslAccuracyTest
-from modules.loss import PHOSCLoss
+from modules.engine import train_one_epoch, zslAccuracyTest, gzslAccuracyTest, gzslAccuracyTestAni
+from modules.loss import PHOSCLoss, PHOSCCosineLoss
 
 import torch.nn as nn
 
@@ -24,8 +26,10 @@ def get_args_parser():
                         help='train or test a model')
 
     # Testing method gzsl or zsl
-    parser.add_argument('--testing_mode', type=str, choices=['zsl', 'gzsl'], required=False,
+    parser.add_argument('--testing_mode', type=str, choices=['zsl', 'gzsl', 'gzslAni'], required=False,
                         help='zsl or gzsl testing method')
+    parser.add_argument('--words_list', default=None, required=False,
+                        help='zsl or gzsl testing method')             
     
     # Model settings
     parser.add_argument('--name', type=str, help='Name of run')
@@ -58,6 +62,9 @@ def get_args_parser():
     parser.add_argument('--phos_size', type=int, default=165, help='Phos representation size')
     parser.add_argument('--phoc_size', type=int, default=604, help='Phoc representation size')
     parser.add_argument('--language', type=str, default='eng', choices=['eng', 'nor', 'gw'], help='language which help decide which phosc representation to use')
+
+    # loss function related
+    parser.add_argument('--use_cosine_loss', action='store_true', help='use cosine loss in loss function')
 
 
     return parser
@@ -153,7 +160,12 @@ def main(args):
         scheduler = ReduceLROnPlateau(opt, 'max', factor=0.25, patience=5, verbose=True, threshold=0.0001, cooldown=2,
                                       min_lr=1e-12)
 
-        criterion = PHOSCLoss()
+
+        if args.use_cosine_loss:
+            print('cosine loss')
+            criterion = PHOSCCosineLoss()
+        else:
+            criterion = PHOSCLoss()
 
         mx_acc = 0
         best_epoch = 0
@@ -192,8 +204,19 @@ def main(args):
             acc_seen, _, __ = zslAccuracyTest(model, data_loader_test_seen, device)
             acc_unseen, _, __ = zslAccuracyTest(model, data_loader_test_unseen, device)
         elif args.testing_mode == 'gzsl':
-            acc_seen, _, __ = gzslAccuracyTest(model, data_loader_test_seen, data_loader_test_unseen, device)
-            acc_unseen, _, __ = gzslAccuracyTest(model, data_loader_test_unseen, data_loader_test_seen, device)
+            if args.words_list is not None:
+                df_words = pd.read_csv(args.words_list)
+                args.words_list = list(df_words['Word'])
+
+            acc_seen, _, __ = gzslAccuracyTest(model, data_loader_test_seen, data_loader_test_unseen, device, words_list=args.words_list)
+            acc_unseen, _, __ = gzslAccuracyTest(model, data_loader_test_unseen, data_loader_test_seen, device, words_list=args.words_list)
+        elif args.testing_mode == 'gzslAni':
+            df_words = pd.read_csv(args.words_list)
+
+            words = list(df_words['Word'])
+
+            _, _, _, _, _, acc_seen = gzslAccuracyTestAni(model, words, data_loader_test_seen, device, 0)
+            _, _, _, _, _, acc_unseen = gzslAccuracyTestAni(model, words, data_loader_test_unseen, device, 0)
 
         with open(args.name + '/' + 'testresults.txt', 'a') as f:
             f.write(f'{args.model} {args.testing_mode} test results\n')
